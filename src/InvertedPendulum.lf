@@ -1,0 +1,241 @@
+/*
+ * InvertedPendulum.lf
+ *
+ * Inverted-pendulum stabilisation with a cascade PID controller.
+ */
+
+target Python {
+  keepalive: true,
+  workers: 1
+}
+
+import MuJoCoAuto from "lib/MuJoCoAuto.lf"
+
+preamble {=
+  import csv
+  import math
+  import mujoco
+
+  # GLFW action/key codes (integers); do not call glfw.poll/wait from reactor threads on macOS.
+  _GLFW_PRESS = 1
+  _GLFW_KEY_Q = 81
+  _GLFW_KEY_R = 82
+  _GLFW_KEY_BACKSPACE = 259
+  _GLFW_KEY_LEFT = 263
+  _GLFW_KEY_RIGHT = 262
+=}
+
+reactor InvertedPendulumSim(
+    model_file = {= lf.source_directory() + "/models/inverted_pendulum.xml" =},
+    control_step = 5 ms
+) extends MuJoCoAuto {
+
+  input force
+  input disturbance
+  
+  output cart_pos
+  output cart_vel
+  output pole_angle
+  output pole_angle_vel
+
+  timer control_timer(0, control_step)
+
+  state hinge_id
+  state s_cart_pos
+  state s_cart_vel
+  state s_pole_angle
+  state s_pole_angle_vel
+  state act_force
+  state latest_force
+
+  state step_count = 0
+
+  reaction(startup) {=
+    self.hinge_id = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_JOINT, "hinge")
+    self.context.d.qpos[self.context.m.jnt_qposadr[self.hinge_id]] = 0.05
+    self.s_cart_pos = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_SENSOR, "cart_pos")
+    self.s_cart_vel = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_SENSOR, "cart_vel")
+    self.s_pole_angle = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_SENSOR, "pole_angle")
+    self.s_pole_angle_vel = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_SENSOR, "pole_angle_vel")
+    self.act_force = mujoco.mj_name2id(self.context.m, mujoco.mjtObj.mjOBJ_ACTUATOR, "force")
+  =}
+
+  reaction(force) {=
+    self.latest_force = force.value
+    self.context.d.ctrl[self.act_force] = self.latest_force
+  =}
+
+  reaction(disturbance) {=
+    # Disturbance is an impulse on the hinge joint velocity.
+    self.context.d.qvel[self.context.m.jnt_dofadr[self.hinge_id]] += disturbance.value
+    print(f"  [Disturbance] Applied impulse: {disturbance.value:+5.2f} rad/s")
+  =}
+
+  reaction(physics_timer) {=
+    self.step_count += 1
+    if self.step_count % 1000 == 0:
+      p_angle = self.context.d.sensordata[self.s_pole_angle]
+      c_pos = self.context.d.sensordata[self.s_cart_pos]
+      self.text_to_overlay = (
+        f"Time={lf.time.logical_elapsed() / 1e9:6.1f}s: "
+        f"Angle={p_angle:+7.2f} rad ({p_angle * 180.0 / math.pi:+5.1f} deg) "
+        f"Cart pos={c_pos:+4.3f} m F={self.latest_force:+4.1f} N"
+      )
+  =}
+  
+  reaction(control_timer) -> cart_pos, cart_vel, pole_angle, pole_angle_vel {=
+    p_angle = float(self.context.d.sensordata[self.s_pole_angle])
+    c_pos = float(self.context.d.sensordata[self.s_cart_pos])
+    p_vel = float(self.context.d.sensordata[self.s_pole_angle_vel])
+    c_vel = float(self.context.d.sensordata[self.s_cart_vel])
+    cart_pos.set(c_pos)
+    cart_vel.set(c_vel)
+    pole_angle_vel.set(p_vel)
+    pole_angle.set(p_angle)
+  =}
+}
+
+
+reactor InvertedPendulumPID (control_step = 5 ms) {
+
+  input cart_pos
+  input pole_angle
+  input do_reset
+  output force
+
+  state inner = {= None =}
+  state outer = {= None =}
+
+  reaction(startup) {=
+    dt = self.control_step * 1e-9
+    self.inner = {"kp": 120.0, "ki": 1.0, "kd": 30.0, "integral_limit": 10.0, "output_limit": 0.0, "integral": 0.0, "prev_error": 0.0, "dt": dt}
+    self.outer = {"kp": -1.0, "ki": -0.1, "kd": -1.0, "integral_limit": 0.0, "output_limit": 0.1, "integral": 0.0, "prev_error": 0.0, "dt": dt}
+  =}
+
+  reaction(cart_pos, pole_angle) -> force {=
+    def pid_update(pid, setpoint, measurement):
+      err = setpoint - measurement
+      p_out = pid["kp"] * err
+      pid["integral"] += err * pid["dt"]
+      i_out = pid["ki"] * pid["integral"]
+      if pid["integral_limit"] > 0.0:
+        i_out = max(-pid["integral_limit"], min(pid["integral_limit"], i_out))
+      d_out = pid["kd"] * ((err - pid["prev_error"]) / pid["dt"])
+      pid["prev_error"] = err
+      out = p_out + i_out + d_out
+      if pid["output_limit"] > 0.0:
+        out = max(-pid["output_limit"], min(pid["output_limit"], out))
+      return out
+
+    desired_angle = pid_update(self.outer, cart_pos.value, 0.0)
+    force_val = pid_update(self.inner, pole_angle.value, desired_angle)
+    force.set(force_val)
+  =}
+
+  reaction(do_reset) {=
+    self.inner["integral"] = 0.0
+    self.outer["integral"] = 0.0
+    self.inner["prev_error"] = 0.0
+    self.outer["prev_error"] = 0.0
+  =}
+}
+
+/**
+ * Data logger for CSV output.
+ */
+reactor DataLogger(filename = "pendulum_data.csv") {
+  preamble {=
+    import csv
+  =}
+  input pole_angle
+  input pole_angle_vel
+  input cart_pos
+  input cart_vel
+  input force
+  
+  state log_file = {= None =}
+  state csv_writer = {= None =}
+  state sample_count = 0
+  
+  reaction(startup) {=
+    self.log_file = open(self.filename, "w", newline="", encoding="utf-8")
+    self.csv_writer = csv.writer(self.log_file)
+    self.csv_writer.writerow(["time_s", "pole_angle_rad", "pole_angle_vel_rad_s", "cart_pos_m", "cart_vel_m_s", "force_N"])
+    print(f"Data logger: writing to {self.filename}")
+  =}
+  
+  reaction(force, pole_angle, pole_angle_vel, cart_pos, cart_vel) {=
+    if self.log_file:
+      self.csv_writer.writerow([
+        lf.time.logical_elapsed() / 1e9,
+        pole_angle.value, pole_angle_vel.value,
+        cart_pos.value, cart_vel.value,
+        force.value
+      ])
+      self.sample_count += 1
+  =}
+  
+  reaction(shutdown) {=
+    if self.log_file:
+      self.log_file.close()
+      print(f"Data logger: wrote {self.sample_count} samples to file")
+  =}
+}
+
+/*
+ * Main reactor that instantiates the simulation, controller, and logger.
+ */
+main reactor InvertedPendulum {
+  sim = new InvertedPendulumSim(sim_step = 1 ms, frame_period = 33 ms, control_step = 5 ms)
+  pid = new InvertedPendulumPID(control_step = 5 ms)
+  logger = new DataLogger(filename = "pendulum_data.csv")
+
+  sim.cart_pos -> pid.cart_pos after 0
+  sim.pole_angle -> pid.pole_angle after 0
+  pid.force -> sim.force
+
+  // Data logging
+  sim.pole_angle -> logger.pole_angle
+  sim.pole_angle_vel -> logger.pole_angle_vel
+  sim.cart_pos -> logger.cart_pos
+  sim.cart_vel -> logger.cart_vel
+  pid.force -> logger.force
+  
+  reaction(startup) {=
+    print(" ")
+    print("========================================================================")
+    print("   Inverted Pendulum Control using MuJoCo + Cascade PID Controllers")
+    print("========================================================================")
+    print(" ")
+    print("Controls:")
+    print("  Q         - Quit")
+    print("  R/Backsp  - Reset simulation")
+    print("  LEFT      - Apply left disturbance")
+    print("  RIGHT     - Apply right disturbance")
+    print(" ")
+  =}
+  
+  // Handle key presses from the simulation (inherited from MuJoCoBase)
+  reaction(sim.key) -> sim.restart, sim.disturbance, pid.do_reset {=
+    if sim.key.value.act == _GLFW_PRESS:
+      if sim.key.value.key == _GLFW_KEY_Q:
+        print("Quit requested")
+        lf.request_stop()
+      elif sim.key.value.key == _GLFW_KEY_BACKSPACE or sim.key.value.key == _GLFW_KEY_R:
+        sim.restart.set(True)
+        pid.do_reset.set(True)
+      elif sim.key.value.key == _GLFW_KEY_LEFT:
+        sim.disturbance.set(-0.5)
+      elif sim.key.value.key == _GLFW_KEY_RIGHT:
+        sim.disturbance.set(0.5)
+  =}
+  
+  reaction(shutdown) {=
+    print(" ")
+    print("========================================================================")
+    print("                        Simulation Complete")
+    print("========================================================================")
+    print("  Data saved to: pendulum_data.csv")
+    print(" ")
+  =}
+}

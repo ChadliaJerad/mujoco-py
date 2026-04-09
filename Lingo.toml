@@ -1,0 +1,53 @@
+[package]
+name = "mujoco-py"
+version = "0.1.0"
+
+[lib]
+name = "mujoco-py"
+location = "src/lib"
+target = "Python"
+platform = "Native"
+
+[lib.properties]
+
+[[app]]
+name = "MuJoCoBasicDemo"
+main = "src/MuJoCoBasicDemo.lf"
+target = "Python"
+platform = "Native"
+
+[app.properties]
+
+[[app]]
+name = "MuJoCoCarDemo"
+main = "src/MuJoCoCarDemo.lf"
+target = "Python"
+platform = "Native"
+
+[app.properties]
+
+[[app]]
+name = "MuJoCoCarAutoDemo"
+main = "src/MuJoCoCarAutoDemo.lf"
+target = "Python"
+platform = "Native"
+
+[app.properties]
+
+[[app]]
+name = "PandaDemo"
+main = "src/PandaDemo.lf"
+target = "Python"
+platform = "Native"
+
+[app.properties]
+
+[[app]]
+name = "InvertedPendulum"
+main = "src/InvertedPendulum.lf"
+target = "Python"
+platform = "Native"
+
+[app.properties]
+
+[dependencies]

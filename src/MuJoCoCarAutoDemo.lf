@@ -1,0 +1,70 @@
+/**
+ * @file Basic car driving program for MuJoCo.
+ *
+ * This program uses the [MuJoCoCar](lib/MuJoCoCar.lf) reactor to build a simple interactive
+ * simulation. The arrow keys can be used to drive the car. The _backspace_ or _delete_ key will
+ * reset the simulation to its initial conditions, and the `q` or `Q` key will quit the simulation.
+ *
+ * See [README.md](../README.md) for prerequisites and installation instructions.
+ *
+ * @author Edward A. Lee
+ */
+target Python {
+  keepalive: true
+}
+
+import MuJoCoCarAuto from "lib/MuJoCoCarAuto.lf"
+
+preamble {=
+  from mujoco.glfw import glfw
+  import sys
+=}
+
+main reactor(speed_sensitivity = 0.05, turn_sensitivity = 0.01) {
+  state speed = 0
+  state turn = 0
+
+  m = new MuJoCoCarAuto()
+
+  reaction(startup) {=
+    print("*** Backspace to reset.")
+    print("*** Type q to quit.\n")
+    m.text_to_overlay = "MuJoCo Car Auto Demo"
+  =}
+
+  reaction(m.key) -> m.restart, m.forward, m.turn {=
+    if m.key.value.act == glfw.PRESS:
+      if m.key.value.key == glfw.KEY_BACKSPACE:
+        m.restart.set(True)
+        self.speed = 0.0
+        self.turn = 0.0
+      elif m.key.value.key == glfw.KEY_Q:
+        lf.request_stop()
+      elif m.key.value.key == glfw.KEY_UP:
+        self.speed += self.speed_sensitivity
+        m.forward.set(self.speed)
+      elif m.key.value.key == glfw.KEY_DOWN:
+        self.speed -= self.speed_sensitivity
+        m.forward.set(self.speed)
+      elif m.key.value.key == glfw.KEY_RIGHT:
+        self.turn -= self.turn_sensitivity
+        m.turn.set(self.turn)
+      elif m.key.value.key == glfw.KEY_LEFT:
+        self.turn += self.turn_sensitivity
+        m.turn.set(self.turn)
+  =}
+
+  reaction(m.right_force, m.left_force, m.tick) {=
+    line = f"\r{lf.time.logical_elapsed()}"
+    if m.left_force.is_present:
+      line += f"\t<--- {m.left_force.value:f}"
+    if m.right_force.is_present:
+      line += f"\t {m.right_force.value:f} --->"
+    print(line, end="")
+    sys.stdout.flush()
+  =}
+
+  reaction(shutdown) {=
+    print("\nExiting.")
+  =}
+}
