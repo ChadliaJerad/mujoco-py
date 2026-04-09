@@ -52,7 +52,7 @@ main reactor {
   m = new MuJoCoPanda(sim_step = 10 ms, frame_period = 33 ms)
   c = new[8] SimpleController(
       period = 100 ms,
-      parameter_file = {= LF_SOURCE_DIRECTORY "/PandaDemoParameters.csv" =})
+      parameter_file = {= lf.source_directory() + "/PandaDemoParameters.csv" =})
 
   c.command -> m.motor
 

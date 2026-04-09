@@ -26,10 +26,8 @@ reactor MuJoCoAuto(frame_period = 33 ms, sim_step = 1 ms) extends MuJoCoBase {
   timer rendering_timer(0, frame_period)
   timer physics_timer(0, sim_step)
 
-  state text_to_overlay = "MuJoCo Simulation Starting..."
-
   reaction(rendering_timer) {=
-    self.update_scene(self.text_to_overlay)
+    self.update_scene("")
   =}
 
 reaction(physics_timer) -> tick {=

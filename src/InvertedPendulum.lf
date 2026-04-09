@@ -5,8 +5,7 @@
  */
 
 target Python {
-  keepalive: true,
-  workers: 1
+  keepalive: true
 }
 
 import MuJoCoAuto from "lib/MuJoCoAuto.lf"
