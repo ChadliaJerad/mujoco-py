@@ -22,6 +22,11 @@ reactor SimpleController(
   timer t(0, period)
   state motor = 0.0
 
+  # In Python, can't overwrite parameter values, so we use state variables instead.
+  state step_value = step
+  state high_limit_value = high_limit
+  state low_limit_value = low_limit
+
   reaction(startup) {=
     if self.parameter_file:
       with open(self.parameter_file, "r", encoding="utf-8-sig") as f:
@@ -29,9 +34,9 @@ reactor SimpleController(
       row_idx = self.bank_index + 1
       if row_idx < len(rows):
         row = rows[row_idx]
-        self.step = float(row[0].strip())
-        self.high_limit = float(row[1].strip())
-        self.low_limit = float(row[2].strip())
+        self.step_value = float(row[0].strip())
+        self.high_limit_value = float(row[1].strip())
+        self.low_limit_value = float(row[2].strip())
   =}
 
   reaction(restart) {=
@@ -40,9 +45,9 @@ reactor SimpleController(
 
   reaction(t) -> command {=
     command.set(self.motor)
-    self.motor += self.step
-    if self.motor > self.high_limit or self.motor < self.low_limit:
-      self.step = -self.step
+    self.motor += self.step_value
+    if self.motor > self.high_limit_value or self.motor < self.low_limit_value:
+      self.step_value = -self.step_value
   =}
 }
 
