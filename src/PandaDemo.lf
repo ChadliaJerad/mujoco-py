@@ -12,11 +12,11 @@ preamble {=
 
 reactor SimpleController(
     period = 100 ms,
-    step = 0.1,
-    high_limit = 1.0,
-    low_limit = -1.0,
-    bank_index = 0,
-    parameter_file = "") {
+    step=0.1,
+    high_limit=1.0,
+    low_limit=-1.0,
+    bank_index=0,
+    parameter_file="") {
   input restart
   output command
   timer t(0, period)
@@ -54,7 +54,7 @@ reactor SimpleController(
 main reactor {
   timer read_state_timer(0, 500 ms)
 
-  m = new MuJoCoPanda(sim_step = 10 ms, frame_period = 33 ms)
+  m = new MuJoCoPanda(frame_period = 33 ms)
   c = new[8] SimpleController(
       period = 100 ms,
       parameter_file = {= lf.source_directory() + "/PandaDemoParameters.csv" =})

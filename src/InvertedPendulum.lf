@@ -1,9 +1,8 @@
-/*
+/**
  * InvertedPendulum.lf
  *
  * Inverted-pendulum stabilisation with a cascade PID controller.
  */
-
 target Python {
   keepalive: true
 }
@@ -26,12 +25,10 @@ preamble {=
 
 reactor InvertedPendulumSim(
     model_file = {= lf.source_directory() + "/models/inverted_pendulum.xml" =},
-    control_step = 5 ms
-) extends MuJoCoAuto {
-
+    control_step = 5 ms) extends MuJoCoAuto {
   input force
   input disturbance
-  
+
   output cart_pos
   output cart_vel
   output pole_angle
@@ -81,7 +78,7 @@ reactor InvertedPendulumSim(
         f"Cart pos={c_pos:+4.3f} m F={self.latest_force:+4.1f} N"
       )
   =}
-  
+
   reaction(control_timer) -> cart_pos, cart_vel, pole_angle, pole_angle_vel {=
     p_angle = float(self.context.d.sensordata[self.s_pole_angle])
     c_pos = float(self.context.d.sensordata[self.s_cart_pos])
@@ -94,9 +91,7 @@ reactor InvertedPendulumSim(
   =}
 }
 
-
-reactor InvertedPendulumPID (control_step = 5 ms) {
-
+reactor InvertedPendulumPID(control_step = 5 ms) {
   input cart_pos
   input pole_angle
   input do_reset
@@ -139,10 +134,8 @@ reactor InvertedPendulumPID (control_step = 5 ms) {
   =}
 }
 
-/**
- * Data logger for CSV output.
- */
-reactor DataLogger(filename = "pendulum_data.csv") {
+/** Data logger for CSV output. */
+reactor DataLogger(filename="pendulum_data.csv") {
   preamble {=
     import csv
   =}
@@ -151,18 +144,18 @@ reactor DataLogger(filename = "pendulum_data.csv") {
   input cart_pos
   input cart_vel
   input force
-  
+
   state log_file = {= None =}
   state csv_writer = {= None =}
   state sample_count = 0
-  
+
   reaction(startup) {=
     self.log_file = open(self.filename, "w", newline="", encoding="utf-8")
     self.csv_writer = csv.writer(self.log_file)
     self.csv_writer.writerow(["time_s", "pole_angle_rad", "pole_angle_vel_rad_s", "cart_pos_m", "cart_vel_m_s", "force_N"])
     print(f"Data logger: writing to {self.filename}")
   =}
-  
+
   reaction(force, pole_angle, pole_angle_vel, cart_pos, cart_vel) {=
     if self.log_file:
       self.csv_writer.writerow([
@@ -173,7 +166,7 @@ reactor DataLogger(filename = "pendulum_data.csv") {
       ])
       self.sample_count += 1
   =}
-  
+
   reaction(shutdown) {=
     if self.log_file:
       self.log_file.close()
@@ -181,25 +174,22 @@ reactor DataLogger(filename = "pendulum_data.csv") {
   =}
 }
 
-/*
- * Main reactor that instantiates the simulation, controller, and logger.
- */
+/** Main reactor that instantiates the simulation, controller, and logger. */
 main reactor InvertedPendulum {
-  sim = new InvertedPendulumSim(sim_step = 1 ms, frame_period = 33 ms, control_step = 5 ms)
+  sim = new InvertedPendulumSim(frame_period = 33 ms, control_step = 5 ms)
   pid = new InvertedPendulumPID(control_step = 5 ms)
-  logger = new DataLogger(filename = "pendulum_data.csv")
+  logger = new DataLogger(filename="pendulum_data.csv")
 
   sim.cart_pos -> pid.cart_pos after 0
   sim.pole_angle -> pid.pole_angle after 0
   pid.force -> sim.force
 
-  // Data logging
-  sim.pole_angle -> logger.pole_angle
+  sim.pole_angle -> logger.pole_angle  # Data logging
   sim.pole_angle_vel -> logger.pole_angle_vel
   sim.cart_pos -> logger.cart_pos
   sim.cart_vel -> logger.cart_vel
   pid.force -> logger.force
-  
+
   reaction(startup) {=
     print(" ")
     print("========================================================================")
@@ -213,8 +203,8 @@ main reactor InvertedPendulum {
     print("  RIGHT     - Apply right disturbance")
     print(" ")
   =}
-  
-  // Handle key presses from the simulation (inherited from MuJoCoBase)
+
+  # Handle key presses from the simulation (inherited from MuJoCoBase)
   reaction(sim.key) -> sim.restart, sim.disturbance, pid.do_reset {=
     if sim.key.value.act == _GLFW_PRESS:
       if sim.key.value.key == _GLFW_KEY_Q:
@@ -228,7 +218,7 @@ main reactor InvertedPendulum {
       elif sim.key.value.key == _GLFW_KEY_RIGHT:
         sim.disturbance.set(0.5)
   =}
-  
+
   reaction(shutdown) {=
     print(" ")
     print("========================================================================")

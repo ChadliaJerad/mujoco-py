@@ -9,7 +9,7 @@ import MuJoCoAuto from "MuJoCoAuto.lf"
  */
 reactor MuJoCoPanda(
     model_file = {=
-      lf.source_directory() + "/models/mujoco_menagerie/franka_emika_panda/scene.xml"
+      lf.source_directory() + "/models/mujoco_menagerie/franka_emika_panda/mjx_scene.xml"
     =}) extends MuJoCoAuto {
   input[8] motor
   input read_state

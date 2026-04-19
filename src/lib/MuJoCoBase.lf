@@ -52,9 +52,9 @@ preamble {=
  * On-screen status text: the C target uses `mjr_overlay` in window space (e.g. bottom-left). The
  * Python `mujoco.viewer.launch_passive` API does not expose the viewer's `MjrContext`, so the same
  * overlay cannot be drawn from reactor code. Instead, `update_scene` draws `text_to_overlay` as an
- * `mjGEOM_LABEL` in the passive viewer's `user_scn` (text placed near the current camera lookat). For
- * true window-space overlays, use `mujoco.mjr_overlay` in a render loop where your code owns the
- * OpenGL context (see MuJoCo's `basic.cc` / custom GLFW examples).
+ * `mjGEOM_LABEL` in the passive viewer's `user_scn` (text placed near the current camera lookat).
+ * For true window-space overlays, use `mujoco.mjr_overlay` in a render loop where your code owns
+ * the OpenGL context (see MuJoCo's `basic.cc` / custom GLFW examples).
  *
  * This code is based on basic.cc from the [MuJoCo distribution](https://mujoco.com), which is
  * licensed under the Apache License, Version 2.0 (the "License"),
@@ -62,8 +62,7 @@ preamble {=
  *
  * @author Edward A. Lee
  */
-reactor MuJoCoBase(
-    model_file = {= lf.source_directory() + "/models/hello.xml" =}) {
+reactor MuJoCoBase(model_file = {= lf.source_directory() + "/models/hello.xml" =}) {
   state context = {= None =}
   state mujoco_time = 0.0
   state lf_time = 0
@@ -74,7 +73,7 @@ reactor MuJoCoBase(
 
   physical action keypress
 
-  // Advance the MuJoCo simulation to the current logical time.
+  # Advance the MuJoCo simulation to the current logical time.
   method advance_simulator() {=
     advance_time_ns = lf.time.logical() - self.lf_time
     if advance_time_ns <= 0:
@@ -87,7 +86,7 @@ reactor MuJoCoBase(
     self.lf_time = lf.time.logical()
   =}
 
-  // Update the scene (and optional status label via user_scn; see reactor doc above).
+  # Update the scene (and optional status label via user_scn; see reactor doc above).
   method update_scene(text_to_overlay) {=
     if self.context.viewer is None:
       return

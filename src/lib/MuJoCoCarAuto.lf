@@ -18,8 +18,7 @@ import MuJoCoAuto from "MuJoCoAuto.lf"
  *
  * @author Edward A. Lee
  */
-reactor MuJoCoCarAuto(
-    model_file = {= lf.source_directory() + "/models/car.xml" =})
+reactor MuJoCoCarAuto(model_file = {= lf.source_directory() + "/models/car.xml" =})
     extends MuJoCoAuto {
   preamble {=
     import mujoco
@@ -30,9 +29,9 @@ reactor MuJoCoCarAuto(
   output right_force
   output left_force
 
-  state forward_index = 0  // Actuator indexes.
+  state forward_index = 0  # Actuator indexes.
   state turn_index = 0
-  state right_address = 0  // Sensor addresses
+  state right_address = 0  # Sensor addresses
   state left_address = 0
 
   reaction(startup) {=

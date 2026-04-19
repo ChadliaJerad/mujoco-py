@@ -25,9 +25,9 @@ reactor MuJoCoCar(model_file = {= lf.source_directory() + "/models/car.xml" =})
   output right_force
   output left_force
 
-  state forward_index = 0  // Actuator indexes.
+  state forward_index = 0  # Actuator indexes.
   state turn_index = 0
-  state right_address = 0  // Sensor addresses
+  state right_address = 0  # Sensor addresses
   state left_address = 0
 
   reaction(startup) {=
