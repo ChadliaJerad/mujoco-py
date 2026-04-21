@@ -1,3 +1,17 @@
+/**
+ * Franka Emika Panda robot demo.
+ *
+ * This moves each of the eight joints of the Panda robot through a range of values defined in the CSV file.
+ *
+ * See [README.md](../README.md) for prerequisites and installation instructions.
+ *
+ * This program reads parameter values from a CSV file and uses them to control the Panda robot.
+ * The CSV file is "PandaDemoParameters.csv" located in the same directory as this program.
+ * There are three datasets in the CSV file corresponding to three different speeds of motion.
+ * To select a dataset, change the top-level `dataset` parameter to 0, 1, or 2.
+ *
+ * @author Edward A. Lee
+ */
 target Python {
   workers: 1,
   keepalive: true
@@ -12,6 +26,7 @@ preamble {=
 
 reactor SimpleController(
     period = 100 ms,
+    dataset = 0,
     step=0.1,
     high_limit=1.0,
     low_limit=-1.0,
@@ -31,7 +46,7 @@ reactor SimpleController(
     if self.parameter_file:
       with open(self.parameter_file, "r", encoding="utf-8-sig") as f:
         rows = list(csv.reader(f))
-      row_idx = self.bank_index + 1
+      row_idx = (9 * self.dataset) + self.bank_index + 1
       if row_idx < len(rows):
         row = rows[row_idx]
         self.step_value = float(row[0].strip())
@@ -51,12 +66,13 @@ reactor SimpleController(
   =}
 }
 
-main reactor {
+main reactor(dataset = 1) {
   timer read_state_timer(0, 500 ms)
 
   m = new MuJoCoPanda(frame_period = 33 ms)
   c = new[8] SimpleController(
       period = 100 ms,
+      dataset = dataset,
       parameter_file = {= lf.source_directory() + "/PandaDemoParameters.csv" =})
 
   c.command -> m.motor
