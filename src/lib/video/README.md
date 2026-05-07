@@ -1,6 +1,6 @@
 # Video and YOLO Library
 
-This library provides video capture, display, and DNN-based object recognition using YOLOv5 for use in the `PandaDemoCamCtrl.lf` programs.
+This library provides video capture, display, and DNN-based object recognition using YOLOv8 for use in the `PandaDemoCamCtrl.lf` programs.
 
 ## Setup
 

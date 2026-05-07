@@ -1,14 +1,12 @@
 /**
- * This a variant of from: https://github.com/lf-lang/playground-lingua-franca/blob/main/examples/Python/src/YOLOv5/Video.lf, but using YOLOv8 instead of YOLOv5. The code is adapted from:
- * https://towardsdatascience.com/implementing-real-time-object-detection-system-using-pytorch-and-opencv-70bac41148f7
+ * Adapted from: https://github.com/lf-lang/playground-lingua-franca/blob/main/examples/Python/src/YOLOv5/Video.lf
+ * Uses YOLOv8 (ultralytics) instead of YOLOv5.
  *
  * Original license: [BSD 2-Clause License]
  * See README.md for instructions on how to install the required libraries.
  * Date copied: 2026-05-01
  *
- * Please see README.md for instructions. This uses ultralytics/yolov8. Adapted from:
- *
- * One modification from the original:
+ * Modification from the original:
  * 1. Removed the deadline on the DNN, for latency purposes.
 **/
 

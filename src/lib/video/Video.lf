@@ -48,7 +48,7 @@ reactor WebCam(webcam_id=0, url="", offset = 0 s, period = 100 ms) {
     # self.stream.set(cv2.CAP_PROP_FPS, 30) # Set the camera's FPS to 30
   =}
 
-  reaction(camera_tick) -> camera_frame {=# Minimal buffering to reduce latency.
+  reaction(camera_tick) -> camera_frame {=
     # read() is a combination of grab() and retrieve().
     ret, frame = self.stream.read()
     if ret:
