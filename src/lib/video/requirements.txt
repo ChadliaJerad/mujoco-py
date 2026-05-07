@@ -31,3 +31,8 @@ ultralytics
 # Logging
 tensorboard>=2.4.1
 thop
+
+# rendering
+PyOpenGL
+PyOpenGL-accelerate
+PyQt5
