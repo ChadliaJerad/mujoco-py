@@ -6,3 +6,4 @@ src-gen
 fed-gen
 MUJOCO_LOG.TXT
 .venv
+*.pt
