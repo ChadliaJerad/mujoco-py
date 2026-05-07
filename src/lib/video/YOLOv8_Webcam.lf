@@ -1,20 +1,17 @@
 /**
- * Copied from: https://github.com/lf-lang/playground-lingua-franca/blob/main/examples/Python/src/YOLOv5/Video.lf
+ * This a variant of from: https://github.com/lf-lang/playground-lingua-franca/blob/main/examples/Python/src/YOLOv5/Video.lf, but using YOLOv8 instead of YOLOv5. The code is adapted from:
+ * https://towardsdatascience.com/implementing-real-time-object-detection-system-using-pytorch-and-opencv-70bac41148f7
+ *
  * Original license: [BSD 2-Clause License]
  * See README.md for instructions on how to install the required libraries.
  * Date copied: 2026-05-01
- * 
+ *
+ * Please see README.md for instructions. This uses ultralytics/yolov8. Adapted from:
+ *
  * One modification from the original:
  * 1. Removed the deadline on the DNN, for latency purposes.
 **/
 
-
-/**
- * @brief Example of a Deep Neural Network (YOLOv5) in LF.
- *
- * Please see README.md for instructions. This uses ultralytics/yolov5. Adapted from:
- * https://towardsdatascience.com/implementing-real-time-object-detection-system-using-pytorch-and-opencv-70bac41148f7
- */
 target Python {
   keepalive: true,
   single-threaded: true  # OpenCV crashes if we use the multithreaded version.
@@ -29,7 +26,7 @@ preamble {=
 =}
 
 /**
- * A YOLOv5 DNN that takes a frame as input and produces object 'labels' and object label
+ * A YOLOv8 DNN that takes a frame as input and produces object 'labels' and object label
  * coordinates (where each label/object is on the frame).
  */
 reactor DNN {
@@ -43,39 +40,27 @@ reactor DNN {
   state _device             # The device to use (e.g., cpu or cuda)
   preamble {=
     import torch
-    from torch import hub
+    import numpy as np
+    from ultralytics import YOLO
   =}
 
   reaction(startup) -> model {=
-    # YOLOv5 hub code calls the deprecated torch.cuda.amp.autocast on every
-    # inference. Redirect it to the current API so the FutureWarning disappears.
-    self.torch.cuda.amp.autocast = lambda enabled=True, **kw: self.torch.amp.autocast("cuda", enabled=enabled, **kw)
-
-    # PyTorch 2.6 changed torch.load to default weights_only=True, which breaks
-    # the YOLOv5 checkpoint format. Patch it back to False for this trusted load.
-    _orig_load = self.torch.load
-    self.torch.load = lambda *a, **kw: _orig_load(*a, **{**kw, "weights_only": kw.get("weights_only", False)})
-    try:
-      self._model = self.torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
-    finally:
-      self.torch.load = _orig_load
-    # Find out if CUDA is supported
-    self._device = "cuda" if self.torch.cuda.is_available() else 'cpu'
-    # Send the model to device
-    self._model.to(self._device)
-    # Send the model to whoever is interested (other reactors)
+    self._model = self.YOLO("yolov8n.pt")
+    self._device = "cuda" if self.torch.cuda.is_available() else "cpu"
     model.set(self._model)
   =}
 
   reaction(frame) -> labels, label_coordinates {=
-    # Convert the frame into a tuple
-    fr = [frame.value]
-    # Run the model on the frame
-    results = self._model(fr)
-    # Extract the labels
-    labels.set(results.xyxyn[0][:, -1].cpu().numpy())
-    # Extract the coordinates for the label
-    label_coordinates.set(results.xyxyn[0][:, :-1].cpu().numpy())
+    results = self._model(frame.value, verbose=False)
+    boxes = results[0].boxes
+    if len(boxes) > 0:
+      xyxyn = boxes.xyxyn.cpu().numpy()
+      conf = boxes.conf.cpu().numpy().reshape(-1, 1)
+      labels.set(boxes.cls.cpu().numpy())
+      label_coordinates.set(self.np.hstack([xyxyn, conf]))
+    else:
+      labels.set(self.np.empty(0))
+      label_coordinates.set(self.np.empty((0, 5)))
   =}
 }
 
@@ -96,7 +81,7 @@ reactor Plotter(label_deadline = 100 msec) {
     self._model = model.value
   =}
 
-  // /** Impose a deadline on object labels */
+  /** Impose a deadline on object labels */
   // reaction(labels) {=
   //   # DNN output was on time
   // =} deadline(label_deadline) {=
